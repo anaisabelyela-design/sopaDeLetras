@@ -1,237 +1,272 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Sopa de Letras (Arrastre)</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f0f8ff;
-      margin: 0;
-      padding: 0;
-    }
-    h1 { color: #004080; margin: 15px; }
-    #grid {
-      display: grid;
-      grid-template-columns: repeat(15, 30px);
-      grid-gap: 4px;
-      justify-content: center;
-      margin: 20px auto;
-      user-select: none; /* evita selección de texto */
-    }
-    .cell {
-      width: 30px; height: 30px;
-      border: 1px solid #004080;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      background: #fff;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    .selected { background-color: #cce5ff; }
-    .found { background-color: #a8e6a1; color: #004d00; }
-    #info { margin: 20px; font-size: 18px; color: #004080; }
-    #info span { font-weight: bold; }
-    @media (max-width: 600px) {
-      #grid { grid-template-columns: repeat(15, 22px); }
-      .cell { width: 22px; height: 22px; font-size: 12px; }
-    }
-    .modal {
-      display: none; position: fixed; z-index: 1; left: 0; top: 0;
-      width: 100%; height: 100%; overflow: auto;
-      background-color: rgba(0,0,0,0.5);
-    }
-    .modal-content {
-      background-color: #fff; margin: 15% auto; padding: 20px;
-      border: 2px solid #004080; width: 80%; max-width: 400px;
-      border-radius: 10px; text-align: center;
-    }
-    .modal-content h2 { color: #004080; }
-    .modal-content button {
-      margin: 10px; padding: 10px 20px; font-size: 16px;
-      border: none; border-radius: 5px; cursor: pointer;
-    }
-    .btn-restart { background-color: #4CAF50; color: white; }
-    .btn-exit { background-color: #f44336; color: white; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sopa de Letras</title>
+<style>
+body{font-family:Arial,sans-serif;text-align:center;background:#f0f8ff;margin:0;padding:0}
+h1{color:#004080;margin:15px}
+#grid{display:grid;grid-template-columns:repeat(15,30px);gap:4px;justify-content:center;margin:20px auto;user-select:none}
+.cell{width:30px;height:30px;border:1px solid #004080;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;font-weight:bold;font-size:14px;box-sizing:border-box}
+.cell:hover{background:#e6f2ff}
+.selected{background:#cce5ff}
+.found{background:#a8e6a1;color:#004d00}
+#info{margin:20px;font-size:18px;color:#004080}
+#info span{font-weight:bold}
+#words{display:block;max-width:800px;margin:10px auto;line-height:1.8}
+.word-found{text-decoration:line-through;color:#008000}
+@media(max-width:600px){
+#grid{grid-template-columns:repeat(15,22px);gap:2px}
+.cell{width:22px;height:22px;font-size:12px}
+h1{font-size:22px}
+#info{font-size:16px}
+}
+.modal{display:none;position:fixed;z-index:1;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:rgba(0,0,0,.5)}
+.modal-content{background:#fff;margin:15% auto;padding:20px;border:2px solid #004080;width:80%;max-width:400px;border-radius:10px;text-align:center}
+.modal-content h2{color:#004080}
+.modal-content button{margin:10px;padding:10px 20px;font-size:16px;border:none;border-radius:5px;cursor:pointer}
+.btn-restart{background:#4CAF50;color:white}
+.btn-exit{background:#f44336;color:white}
+.btn-restart:hover{background:#45a049}
+.btn-exit:hover{background:#d32f2f}
+</style>
 </head>
 <body>
-  <h1>🔎 Juego: Sopa de Letras</h1>
-  <p>Encuentra las palabras ocultas arrastrando desde la primera hasta la última letra.</p>
+<h1>🔎 Juego: Sopa de Letras</h1>
+<p>Haz clic en la primera y última letra de cada palabra para seleccionarla.</p>
+<div id="grid"></div>
+<div id="info">
+<p>Puntaje: <span id="score">0</span></p>
+<p>Tiempo restante: <span id="timer">180</span> segundos</p>
+<p>Palabras a encontrar:</p>
+<span id="words"></span>
+</div>
 
-  <div id="grid"></div>
+<div id="resultModal" class="modal">
+<div class="modal-content">
+<h2 id="resultTitle"></h2>
+<p id="resultText"></p>
+<button class="btn-restart" onclick="restartGame()">Volver a jugar</button>
+<button class="btn-exit" onclick="exitGame()">Salir</button>
+</div>
+</div>
 
-  <div id="info">
-    <p>Puntaje: <span id="score">0</span></p>
-    <p>Tiempo restante: <span id="timer">180</span> segundos</p>
-    <p>Palabras a encontrar: <span id="words"></span></p>
-  </div>
+<script>
+const gridSize=15;
+const wordsToFind=["OVEJAS","GOLONDRINA","ESCARABAJO","TRUCHA","DANTA","PAVA","CURIES","CONEJO","CHIGÜIRO","OSODEANTEOJOS"];
+let grid=[];
+let foundWords=[];
+let score=0;
+let timeLeft=180;
+let timerInterval=null;
+let startCell=null;
 
-  <div id="resultModal" class="modal">
-    <div class="modal-content">
-      <h2 id="resultTitle"></h2>
-      <p id="resultText"></p>
-      <button class="btn-restart" onclick="restartGame()">Volver a jugar</button>
-      <button class="btn-exit" onclick="exitGame()">Salir</button>
-    </div>
-  </div>
+const directions=[
+{dx:1,dy:0},{dx:-1,dy:0},
+{dx:0,dy:1},{dx:0,dy:-1},
+{dx:1,dy:1},{dx:-1,dy:1},
+{dx:1,dy:-1},{dx:-1,dy:-1}
+];
 
-  <script>
-    const gridSize = 15;
-    const wordsToFind = ["OVEJAS","GOLONDRINA","ESCARABAJO","TRUCHA","DANTA","PAVA","CURIES","CONEJO","CHIGÜIRO","OSODEANTEOJOS"];
-    let grid = [];
-    let foundWords = [];
-    let score = 0;
-    let timeLeft = 300;
-    let timerInterval;
+function createGrid(){
+grid=Array(gridSize*gridSize).fill(null);
+const letters="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    let isDragging = false;
-    let dragCells = [];
+wordsToFind.forEach(word=>{
+let placed=false;
+while(!placed){
+const dir=directions[Math.floor(Math.random()*directions.length)];
+const row=Math.floor(Math.random()*gridSize);
+const col=Math.floor(Math.random()*gridSize);
+if(canPlaceWord(word,row,col,dir)){
+placeWord(word,row,col,dir);
+placed=true;
+}
+}
+});
 
-    const directions = [
-      {dx:1, dy:0}, {dx:-1, dy:0}, {dx:0, dy:1}, {dx:0, dy:-1},
-      {dx:1, dy:1}, {dx:-1, dy:1}, {dx:1, dy:-1}, {dx:-1, dy:-1}
-    ];
+for(let i=0;i<grid.length;i++){
+if(!grid[i])grid[i]=letters[Math.floor(Math.random()*letters.length)];
+}
+renderGrid();
+}
 
-    function createGrid() {
-      grid = Array(gridSize*gridSize).fill(null);
-      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+function canPlaceWord(word,row,col,dir){
+for(let i=0;i<word.length;i++){
+const r=row+dir.dy*i;
+const c=col+dir.dx*i;
+if(r<0||r>=gridSize||c<0||c>=gridSize)return false;
+const index=r*gridSize+c;
+if(grid[index]&&grid[index]!==word[i])return false;
+}
+return true;
+}
 
-      wordsToFind.forEach(word => {
-        let placed = false;
-        while (!placed) {
-          let dir = directions[Math.floor(Math.random()*directions.length)];
-          let row = Math.floor(Math.random()*gridSize);
-          let col = Math.floor(Math.random()*gridSize);
-          if (canPlaceWord(word,row,col,dir)) {
-            placeWord(word,row,col,dir);
-            placed = true;
-          }
-        }
-      });
+function placeWord(word,row,col,dir){
+for(let i=0;i<word.length;i++){
+const r=row+dir.dy*i;
+const c=col+dir.dx*i;
+grid[r*gridSize+c]=word[i];
+}
+}
 
-      for (let i=0;i<grid.length;i++) {
-        if (!grid[i]) grid[i] = letters[Math.floor(Math.random()*letters.length)];
-      }
-      renderGrid();
-    }
+function renderGrid(){
+const gridDiv=document.getElementById("grid");
+gridDiv.innerHTML="";
 
-    function canPlaceWord(word,row,col,dir) {
-      for (let i=0;i<word.length;i++) {
-        let r = row + dir.dy*i;
-        let c = col + dir.dx*i;
-        if (r<0 || r>=gridSize || c<0 || c>=gridSize) return false;
-        let index = r*gridSize+c;
-        if (grid[index] && grid[index]!==word[i]) return false;
-      }
-      return true;
-    }
+grid.forEach((letter,index)=>{
+const cell=document.createElement("div");
+cell.className="cell";
+cell.textContent=letter;
+cell.dataset.index=index;
+cell.addEventListener("click",()=>selectCell(cell));
+gridDiv.appendChild(cell);
+});
 
-    function placeWord(word,row,col,dir) {
-      for (let i=0;i<word.length;i++) {
-        let r = row + dir.dy*i;
-        let c = col + dir.dx*i;
-        grid[r*gridSize+c] = word[i];
-      }
-    }
+updateWordsList();
+}
 
-    function renderGrid() {
-      const gridDiv = document.getElementById("grid");
-      gridDiv.innerHTML = "";
-      grid.forEach((letter, index) => {
-        const cell = document.createElement("div");
-        cell.className = "cell";
-        cell.textContent = letter;
-        cell.dataset.index = index;
+function updateWordsList(){
+const wordsElement=document.getElementById("words");
+wordsElement.innerHTML=wordsToFind.map(word=>{
+return foundWords.includes(word)
+?`<span class="word-found">${word}</span>`
+:word;
+}).join(" | ");
+}
 
-        cell.addEventListener("mousedown", () => {
-          isDragging = true;
-          dragCells = [cell];
-          cell.classList.add("selected");
-        });
+function selectCell(cell){
+if(!startCell){
+startCell=cell;
+cell.classList.add("selected");
+return;
+}
 
-        cell.addEventListener("mouseover", () => {
-          if (isDragging && !dragCells.includes(cell)) {
-            dragCells.push(cell);
-            cell.classList.add("selected");
-          }
-        });
+const startIndex=parseInt(startCell.dataset.index);
+const endIndex=parseInt(cell.dataset.index);
 
-        cell.addEventListener("mouseup", () => {
-          if (isDragging) {
-            checkDragSelection();
-            isDragging = false;
-            dragCells = [];
-          }
-        });
+const startRow=Math.floor(startIndex/gridSize);
+const startCol=startIndex%gridSize;
+const endRow=Math.floor(endIndex/gridSize);
+const endCol=endIndex%gridSize;
 
-        gridDiv.appendChild(cell);
-      });
-      document.getElementById("words").textContent = wordsToFind.join(", ");
-    }
+const rowDiff=endRow-startRow;
+const colDiff=endCol-startCol;
 
-    function checkDragSelection() {
-      const word = dragCells.map(c => c.textContent).join("");
-      const reversed = dragCells.map(c => c.textContent).reverse().join("");
-      if (wordsToFind.includes(word) || wordsToFind.includes(reversed)) {
-        dragCells.forEach(c => {
-          c.classList.remove("selected");
-          c.classList.add("found");
-        });
-        foundWords.push(word);
-        score += 10;
-        document.getElementById("score").textContent = score;
-        if (foundWords.length === wordsToFind.length) {
-          clearInterval(timerInterval);
-          showResults("🎉 ¡Juego terminado!");
-        }
-      } else {
-        dragCells.forEach(c => c.classList.remove("selected"));
-      }
-    }
+const horizontal=rowDiff===0;
+const vertical=colDiff===0;
+const diagonal=Math.abs(rowDiff)===Math.abs(colDiff);
 
-    function startTimer() {
-      timeLeft = 300;
-      document.getElementById("timer").textContent = timeLeft;
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        document.getElementById("timer").textContent = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(timerInterval);
-          showResults("⏰ ¡Tiempo terminado!");
-        }
-      }, 1000);
-    }
+if(!horizontal&&!vertical&&!diagonal){
+startCell.classList.remove("selected");
+startCell=null;
+return;
+}
 
-    function showResults(message) {
-      document.getElementById("resultTitle").textContent = message;
-      document.getElementById("resultText").textContent =
-        "Tu puntaje final es: " + score +
-        "\nPalabras encontradas: " + foundWords.length + " de " + wordsToFind.length;
-      document.getElementById("resultModal").style.display = "block";
-    }
+const dy=Math.sign(rowDiff);
+const dx=Math.sign(colDiff);
 
-    function restartGame() {
-      score = 0;
-      foundWords = [];
-      document.getElementById("score").textContent = score;
-      document.getElementById("resultModal").style.display = "none";
-      clearInterval(timerInterval);
-      createGrid();
-      startTimer();
-    }
+let word="";
+let selectedCells=[];
+let row=startRow;
+let col=startCol;
 
-    function exitGame() {
-      document.getElementById("resultModal").style.display = "none";
-      document.getElementById("grid").innerHTML =
-        "<h2>Gracias por jugar 🔎</h2>";
-      document.getElementById("info").style.display = "none";
-    }
+while(true){
+const index=row*gridSize+col;
+const currentCell=document.querySelector(`[data-index="${index}"]`);
 
-    // Inicializar juego
-    createGrid();
-    startTimer();
-  </script>
+if(!currentCell)break;
+
+word+=currentCell.textContent;
+selectedCells.push(currentCell);
+
+if(row===endRow&&col===endCol)break;
+
+row+=dy;
+col+=dx;
+}
+
+const reversedWord=word.split("").reverse().join("");
+let foundWord=null;
+
+if(wordsToFind.includes(word)){
+foundWord=word;
+}else if(wordsToFind.includes(reversedWord)){
+foundWord=reversedWord;
+}
+
+if(foundWord&&!foundWords.includes(foundWord)){
+selectedCells.forEach(c=>{
+c.classList.remove("selected");
+c.classList.add("found");
+});
+
+foundWords.push(foundWord);
+score+=10;
+document.getElementById("score").textContent=score;
+updateWordsList();
+
+if(foundWords.length===wordsToFind.length){
+clearInterval(timerInterval);
+showResults("🎉 ¡Juego terminado!");
+}
+}else{
+selectedCells.forEach(c=>c.classList.remove("selected"));
+}
+
+startCell=null;
+}
+
+function startTimer(){
+if(timerInterval)clearInterval(timerInterval);
+
+timeLeft=180;
+document.getElementById("timer").textContent=timeLeft;
+
+timerInterval=setInterval(()=>{
+timeLeft--;
+document.getElementById("timer").textContent=timeLeft;
+
+if(timeLeft<=0){
+clearInterval(timerInterval);
+showResults("⏰ ¡Tiempo terminado!");
+}
+},1000);
+}
+
+function showResults(message){
+document.getElementById("resultTitle").textContent=message;
+document.getElementById("resultText").innerHTML=
+"Tu puntaje final es: <strong>"+score+"</strong><br><br>"+
+"Palabras encontradas: <strong>"+foundWords.length+
+"</strong> de <strong>"+wordsToFind.length+"</strong>";
+
+document.getElementById("resultModal").style.display="block";
+}
+
+function restartGame(){
+score=0;
+foundWords=[];
+startCell=null;
+
+document.getElementById("score").textContent=score;
+document.getElementById("resultModal").style.display="none";
+
+createGrid();
+startTimer();
+}
+
+function exitGame(){
+clearInterval(timerInterval);
+document.getElementById("resultModal").style.display="none";
+alert("Gracias por jugar. ¡Hasta luego!");
+}
+
+createGrid();
+startTimer();
+</script>
 </body>
 </html>
+
